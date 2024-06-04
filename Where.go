@@ -8,13 +8,24 @@ import (
 
 var ErrSequenceContainsNoElements error = errors.New("sequence contains no elements")
 
-func Max[Key comparable, Value any, Max constraints.Ordered](dictionary map[Key]Value, maxSelector func(key Key, value Value) Max) (max Max, err error) {
+type RealNumber interface {
+	constraints.Integer | constraints.Float
+}
+
+type ComplexNumber interface {
+	RealNumber | constraints.Complex
+}
+
+type Predicate[Key comparable, Value any] func(key Key, value Value) bool
+type ValueSelector[Key comparable, Value any, T any] func(key Key, value Value) T
+
+func Max[Dictionary ~map[Key]Value, Key comparable, Value any, Max constraints.Ordered](dictionary Dictionary, selector ValueSelector[Key, Value, Max]) (max Max, err error) {
 	if len(dictionary) == 0 {
 		return max, ErrSequenceContainsNoElements
 	}
 
 	for key, value := range dictionary {
-		max = maxSelector(key, value)
+		max = selector(key, value)
 		break
 	}
 
@@ -23,7 +34,7 @@ func Max[Key comparable, Value any, Max constraints.Ordered](dictionary map[Key]
 	}
 
 	for key, value := range dictionary {
-		value := maxSelector(key, value)
+		value := selector(key, value)
 		if value > max {
 			max = value
 		}
@@ -32,13 +43,13 @@ func Max[Key comparable, Value any, Max constraints.Ordered](dictionary map[Key]
 	return max, nil
 }
 
-func Min[Key comparable, Value any, Min constraints.Ordered](dictionary map[Key]Value, maxSelector func(key Key, value Value) Min) (min Min, err error) {
+func Min[Dictionary ~map[Key]Value, Key comparable, Value any, Min constraints.Ordered](dictionary Dictionary, selector ValueSelector[Key, Value, Min]) (min Min, err error) {
 	if len(dictionary) == 0 {
 		return min, ErrSequenceContainsNoElements
 	}
 
 	for key, value := range dictionary {
-		min = maxSelector(key, value)
+		min = selector(key, value)
 		break
 	}
 
@@ -47,7 +58,7 @@ func Min[Key comparable, Value any, Min constraints.Ordered](dictionary map[Key]
 	}
 
 	for key, value := range dictionary {
-		value := maxSelector(key, value)
+		value := selector(key, value)
 		if value < min {
 			min = value
 		}
@@ -56,35 +67,35 @@ func Min[Key comparable, Value any, Min constraints.Ordered](dictionary map[Key]
 	return min, nil
 }
 
-func Sum[Key comparable, Value any, ReturnValue constraints.Integer | constraints.Float | constraints.Complex](dictionary map[Key]Value, valueSelector func(key Key, value Value) ReturnValue) (sum ReturnValue) {
+func Sum[Dictionary ~map[Key]Value, Key comparable, Value any, T ComplexNumber](dictionary Dictionary, selector ValueSelector[Key, Value, T]) (sum T) {
 	for key, value := range dictionary {
-		sum += valueSelector(key, value)
+		sum += selector(key, value)
 	}
 	return sum
 }
 
-func Where[Dictionary map[Key]Value, Key comparable, Value any](dictionary Dictionary, keyValueSelector func(key Key, value Value) bool) Dictionary {
+func Where[Dictionary ~map[Key]Value, Key comparable, Value any](dictionary Dictionary, predicate Predicate[Key, Value]) Dictionary {
 	m := make(Dictionary)
 	for key, value := range dictionary {
-		if keyValueSelector(key, value) {
+		if predicate(key, value) {
 			m[key] = value
 		}
 	}
 	return m
 }
 
-func Any[Key comparable, Value any](dictionary map[Key]Value, keyValueSelector func(key Key, value Value) bool) bool {
+func Any[Dictionary ~map[Key]Value, Key comparable, Value any](dictionary Dictionary, predicate Predicate[Key, Value]) bool {
 	for key, value := range dictionary {
-		if keyValueSelector(key, value) {
+		if predicate(key, value) {
 			return true
 		}
 	}
 	return false
 }
 
-func All[Key comparable, Value any](dictionary map[Key]Value, keyValueSelector func(key Key, value Value) bool) bool {
+func All[Dictionary ~map[Key]Value, Key comparable, Value any](dictionary Dictionary, predicate Predicate[Key, Value]) bool {
 	for key, value := range dictionary {
-		if !keyValueSelector(key, value) {
+		if !predicate(key, value) {
 			return false
 		}
 	}
